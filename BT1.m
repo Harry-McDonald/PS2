@@ -23,6 +23,7 @@ im3 = imfill(im2,'holes'); % fill in card face
 im3 = imerode(im2,se); % erode back to normal size
 figure(4)
 imshow(im3)
+
 % figure(1)
 % imshow(im1)
 
