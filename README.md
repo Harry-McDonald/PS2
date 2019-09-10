@@ -5,4 +5,5 @@ This is the sickest new feature wow!!
 
 These are some post merge edits
 
-edge(im1)
+edge(im1);
+double(x);
