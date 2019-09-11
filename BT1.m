@@ -20,4 +20,7 @@ im3 = imerode(im3,se); % erode back to normal size
 figure(4)
 imshow(im3)
 
-B = bwtraceboundary(im3,)
+properties = filterRegions(im3)
+% im3 = bwareafilt(im3,[])
+% 
+% B = bwtraceboundary(im3,)
