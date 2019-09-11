@@ -20,7 +20,19 @@ im3 = imerode(im3,se); % erode back to normal size
 figure(4)
 imshow(im3)
 
-properties = filterRegions(im3)
+[im3, properties] = filterRegions(im3); %Get image properties i.e. Area of objects,axis lengths etc.
+
+
+%%
+[H,T,R] = hough(BW);
+P = houghpeaks(H,4);
+lines = houghlines(BW,T,R,P);
+
+for k = 1:length(lines)
+    xy=[lines(k).point1; lines(k).point2];
+    plot(xy(:,1),xy(:,2),'LineWidth',2,'Color','green');
+end
+
 % im3 = bwareafilt(im3,[])
 % 
 % B = bwtraceboundary(im3,)
