@@ -7,3 +7,5 @@ These are some post merge edits
 
 edge(im1);
 double(x);
+
+Tim is gay
