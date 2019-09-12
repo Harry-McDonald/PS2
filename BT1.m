@@ -1,7 +1,6 @@
-%% Extracting edges
-clear all
+%% Extracting edges and filtering non-card objects
 close all
-orig = imread('C:\Users\Harry\Documents\MATLAB\YEAR 3\SEM 2\METR4202\PS2_Images\PS2 Images\Basic\Simple20.png'); %import image
+orig = imread('C:\Users\Harry\Documents\MATLAB\YEAR 3\SEM 2\METR4202\PS2_Images\PS2 Images\Basic\Simple17.png'); %import image
 im1 = rgb2gray(orig); %make grayscale
 figure(1)
 levels = multithresh(im1,5);
@@ -17,7 +16,7 @@ figure; imshow(im3)
 % area_range = [62000,75000];% From the angle and distance of the photos provided this was the min and max range of the cards
 % im3 = bwareafilt(im3,area_range); % Filter out all objects with area < or > area_range
 for k = 1:length(goodIm_index)
-    area = properties(goodIm_index(k)).Area
+    area = properties(goodIm_index(k)).Area;
     area_up = area+area*0.05;
     area_low = area-area*0.05;
     filt_im = bwareafilt(im3,[area_low,area_up]);
