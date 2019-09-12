@@ -39,6 +39,11 @@ hold on;
 % Centroids is a nx1 struct containg the xy coordinate of the centroid of each card 
 centroids = regionprops(filt_im,'Centroid');
 orients = regionprops(filt_im,'Orientation');
+%Plot centroids
+for k = 1:n
+    pos = centroids(k).Centroid; %2x1 coordinate vector
+    plot(pos(1,1),pos(1,2),'r+')
+end
 for ii = 1:n
     x = centroids(ii).Centroid(1,1);
     y = centroids(ii).Centroid(1,2);
@@ -53,11 +58,7 @@ end
 %Build 2D transformation matrix based on centroid position and orientation
 %The origin is from the bottom left most pixel
 
-%Plot centroids
-for ii = 1:length(centroids)
-    pos = centroids(ii).Centroid; %2x1 coordinate vector
-    plot(pos(1,1),pos(1,2),'r+')
-end
+
 % for ii = 1:length(centroids)
 %     pos = filt_props(ii).Centroid; %2x1 coordinate vector
 %     plot(pos(1,1),pos(1,2),'r+')
