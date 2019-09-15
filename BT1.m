@@ -1,7 +1,7 @@
 %% Extracting edges and filtering non-card objects
 close all
 clear all
-orig = imread('C:\Users\Harry\Documents\MATLAB\YEAR 3\SEM 2\METR4202\PS2_Images\PS2 Images\Basic\Simple13.png'); %import image
+orig = imread('C:\Users\Harry\Documents\MATLAB\YEAR 3\SEM 2\METR4202\PS2_Images\PS2 Images\Basic\Simple21.png'); %import image
 im1 = rgb2gray(orig); %make grayscale
 levels = multithresh(im1,5);
 thresh = double(min(levels))/256;
@@ -77,14 +77,6 @@ for ii = 1:n
         0 0 1 0;
         0 0 0 1];
 end
-%Build 2D transformation matrix based on centroid position and orientation
-%The origin is from the bottom left most pixel
-
-
-% for ii = 1:length(centroids)
-%     pos = filt_props(ii).Centroid; %2x1 coordinate vector
-%     plot(pos(1,1),pos(1,2),'r+')
-% end
 %% Homography
 % To find the smallest distance between cards we use the boundary
 % coordinates of each image (this is B from bwboundaries) and find the distance between
@@ -110,11 +102,13 @@ for b1 = 1:num_boundaries
             bound2x = boundary2(j,2);
             bound2y = boundary2(j,1);
             all_xdist = boundary1x - bound2x;
-            all_ydist = boundary1y-bound2y;
+            all_ydist = boundary1y - bound2y;
             distances = sqrt(all_xdist.^2 + all_ydist.^2);
             [min_dist, index] = min(distances);
             x1 = boundary1x(index);
+            y1 = boundary1y(index);
             x2 = boundary2x(index);
+            y2 = boundary2y(index);
             images = append(num2str(b1),'_to_',num2str(b2));
             minDistance = matlab.lang.makeValidName(images,'Prefix','min_dist_');
             minDistances.(minDistance) = min_dist;
