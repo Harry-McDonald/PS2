@@ -1,7 +1,24 @@
-%% Extracting edges and filtering non-card objects
+%% Initialise
 close all
 clear all
-orig = imread('C:\Users\Harry\Documents\MATLAB\YEAR 3\SEM 2\METR4202\PS2_Images\PS2 Images\Basic\Simple21.png'); %import image
+
+% path = addpath(genpath("PS2 Images"));
+% 
+% imCount = 20;           % The number of images you want to load
+% imNames{imCount} = {};  % Empty array of imCount elements
+% prefix = "Simple";       % The prefix to use for loading images
+% 
+% for n = 1:imCount
+%    imNames{n} = ['Simple', num2str(n), '.png'];
+% end
+% %Change image_num to the required image
+% %response = input('Please enter the image number: ');
+% orig  = imread(imNames{1});
+
+orig = imread('C:\Users\Harry\Documents\MATLAB\YEAR 3\SEM 2\METR4202\PS2 Images\Basic\Simple13.png'); %import image
+
+%% Extracting edges and filtering non-card objects
+
 im1 = rgb2gray(orig); %make grayscale
 levels = multithresh(im1,5);
 thresh = double(min(levels))/256;
@@ -11,10 +28,17 @@ im2 = imdilate(im1,se); %Dilate image to fill gaps based on structural element s
 im3 = imfill(im2,'holes'); % fill in card face
 im3 = imerode(im3,se); % erode back to normal size
 im4 = edge(im3,'canny',thresh(1));
-figure; imshow(im4) % This is what edge detection returns
+figure; 
+% subplot(1,2,1);
+imshow(im4)
+title('Edges - Including non-card objects');
+hold on
+% This is what edge detection returns
 %We can also use bwboundaries to find the coordinates of the boundaries and
 %plot them over original image. This gives nicer filled in boundaries.
-figure; imshow(orig)
+
+figure;
+imshow(orig)
 hold on;
 [B,L,n,A] = bwboundaries(im3);
 %NOTE: n = number of objects
@@ -22,7 +46,9 @@ hold on;
 for ii = 1:n
     data = B{ii};
     plot(data(:,2),data(:,1),'green','LineWidth',2)
+    title('Edge Overlay - Including non-card objects')
 end
+
 %% Task 2
 %Next step is to filter out the obect edges
 %Firstly I found the approximate area of each card using regionpropfilt and set an area range
@@ -32,7 +58,7 @@ end
 % im3 = bwareafilt(im3,area_range); % Filter out all objects with area < or > area_range
 %Instead I found the ratio of the minorAxisLength and majorAxisLength for
 %each image found using imregionprops. If this matched the approximate
-%aspect ratio of a playing card (87/56) I grabbed its area filtered out all 
+%aspect ratio of a playing card (87/56) I grabbed its area and filtered out all 
 %other images that werent within 5% of this area.
 [im_out,properties,goodIm_index] = filterRegions(im3); %custom function made
 for k = 1:length(goodIm_index)
@@ -51,17 +77,31 @@ for ii = 1:n
     data = B{ii};
     plot(data(:,2),data(:,1),'green','LineWidth',2)
 end
+title('Edge Overlay - Non-card objects filtered out')
 hold on;
-%% Finding Pose
+%% Task 3: Finding Pose
+[B,L,n,A] = bwboundaries(filt_im);
+numberOfCards = n;
 % Get centroid position from image properties
 % Centroids is a nx1 struct containg the xy coordinate of the centroid of each card 
 centroids = regionprops(filt_im,'Centroid');
 orients = regionprops(filt_im,'Orientation');
-%Plot centroids
+%Plot centroids and origin
+figure;
+imshow(orig)
+hold on
 for k = 1:n
+    x_0 = 0;
+    y_0 = 0;
     pos = centroids(k).Centroid; %2x1 coordinate vector
-    plot(pos(1,1),pos(1,2),'r+')
+    plot(pos(1,1),pos(1,2),'+','MarkerSize',15, 'DisplayName', ['Card',num2str(k)])
+    %text(pos(1,1),pos(1,2),'Colour','b',['Object',num2str(k)])
 end
+title('Object Index')
+legend;
+hold off
+%This for loop finds the poses of each card based on the orientation and
+%centroid position
 for ii = 1:n
     x = centroids(ii).Centroid(1,1);
     y = centroids(ii).Centroid(1,2);
@@ -85,81 +125,75 @@ end
 % Build a for loop that iterates through all cominations of boundaries other than b1=b1. I.e
 % for 3 images with boundaries it will look at (b1,b2) (b1,b3) (b2,b1)
 % (b2,b3)..
+figure; 
+imshow(orig)
+hold on
+for ii = 1:n
+    data = B{ii};
+    plot(data(:,2),data(:,1),'green','LineWidth',2)
+end
 num_boundaries = size(B, 1);
+combo =[];% Initialise combination list, this will be used to prevent repetitions of combinations
 for b1 = 1:num_boundaries
+    if num_boundaries == 1 
+        minDistances = 0;
+        break
+    end
     for b2 = 1:num_boundaries
-        if b1==b2
+        cont = 0; % Initialise continue variable - this will be used trigger the next iteration of combinations if there is a repetition
+        % Gather list of combinations, check their are no repetitions
+        combo = [combo;[b1,b2]];
+        sz_combo = size(combo);
+        combo_rows = sz_combo(1);
+        for c = 1:combo_rows
+            if combo(c,2) == b1 && combo(c,1)==b2
+                cont = 1;
+                break
+            end
+        end
+        % Check boolean of cont to see whether we need to skip this
+        % iteration
+        if cont == 1
             continue
         end
+        
         boundary1 = B{b1};
         boundary2 = B{b2};
-        boundary1x = boundary1(:,2);
-        boundary1y = boundary1(:,1);
-        boundary2x = boundary2(:,2);
-        boundary2y = boundary2(:,1);
+        boundary1x = boundary1(:,2);% All boundary 1 x values
+        boundary1y = boundary1(:,1);% All boundary 1 y values
+        boundary2x = boundary2(:,2);% All boundary 2 x values
+        boundary2y = boundary2(:,1);% All boundary 2 y values
+        overallMinDist = inf; %This is initialising the minimum distance it will be refined by the following loop
         for j = 1:length(boundary2y)
-            %Here we are going to find the smallest x and y distance between 2 boundaries 
-            bound2x = boundary2(j,2);
-            bound2y = boundary2(j,1);
-            all_xdist = boundary1x - bound2x;
-            all_ydist = boundary1y - bound2y;
-            distances = sqrt(all_xdist.^2 + all_ydist.^2);
-            [min_dist, index] = min(distances);
-            x1 = boundary1x(index);
-            y1 = boundary1y(index);
-            x2 = boundary2x(index);
-            y2 = boundary2y(index);
-            images = append(num2str(b1),'_to_',num2str(b2));
-            minDistance = matlab.lang.makeValidName(images,'Prefix','min_dist_');
-            minDistances.(minDistance) = min_dist;
+            %Here we are going to find the smallest x and y distance between 2 boundaries
+            % Therefore we need to iterate through every x and y difference
+            % and find which is the smallest
+            bound2x = boundary2(j,2); %second boundary x value being checked
+            bound2y = boundary2(j,1); % second boundary y value being checked
+            all_xdist = boundary1x - bound2x; % Difference between boundary 2 x value and all boundary 1 x values.
+            all_ydist = boundary1y - bound2y; % Difference between boundary 2 y value and all boundary 1 y values.
+            distances = sqrt(all_xdist.^2 + all_ydist.^2); % Hypotenuse of x and y distances
+            [min_dist, index] = min(distances); % Minimum distance for boundary 2 jth x and y values
+            % Need to check if jth min_dist is smaller than (j-1)th min_dist 
+            if min_dist < overallMinDist %If jth min_dist is < (j-1)th min_dist, enter and record as overallMinDist
+                x1 = boundary1x(index);
+                y1 = boundary1y(index);
+                x2 = bound2x;
+                y2 = bound2y;
+                overallMinDist = min_dist;
+            end
         end
+        images = append(num2str(b1),'to',num2str(b2));
+        minDistance = matlab.lang.makeValidName(images,'Prefix','minDist');
+        dist_mm = pixel2mm(overallMinDist,filt_im);
+        minDistances.(minDistance) = dist_mm;
+        lines = append(num2str(b1),' to ',num2str(b2));
+        % Draw a line between point 1 and 2
+		line([x1, x2], [y1, y2],'LineWidth', 3);
     end
 end
-% message = sprintf('Found %d boundaries', numberOfBoundaries);
-% uiwait(helpdlg(message));
-% Find minimum distance between each pair of boundaries
-% for b1 = 1 : num_boundaries
-% 	for b2 = 1 : num_boundaries
-% 		if b1 == b2
-% 			% Can't find distance between the region and itself
-% 			continue;
-% 		end
-% 		bound1 = B{b1};
-% 		bound2 = B{b2};
-% 		bound1x = bound1(:, 2);
-% 		bound1y = bound1(:, 1);
-% 		x1=1;
-% 		y1=1;
-% 		x2=1;
-% 		y2=1;
-% 		overallMinDistance = inf; % Initialize.
-% 		% For every point in boundary 2, find the distance to every point in boundary 1.
-% 		for k = 1 : size(bound2, 1)
-% 			% Pick the next point on boundary 2.
-% 			bound2x = bound2(k, 2);
-% 			bound2y = bound2(k, 1);
-% 			% Find the closest disntance between boundary lines
-% 			allDistances = sqrt((bound1x - bound2x).^2 + (bound1y - bound2y).^2);
-% 			% Find closest point, min distance.
-% 			[minDistance, indexOfMin] = min(allDistances);
-% 			if minDistance < overallMinDistance
-% 				x1 = bound1x(indexOfMin);
-% 				y1 = bound1y(indexOfMin);
-% 				x2 = bound2x;
-% 				y2 = bound2y;
-% 				overallMinDistance = minDistance(k);
-% 			end
-% 		end
-% 		% Find the overall min distance
-% 		minDistance = min(minDistance);
-% 		% Report to command window.
-% 		fprintf('The minimum distance from region %d to region %d is %.3f pixels\n', b1, b2, minDistance);
-% 
-% 		% Draw a line between point 1 and 2
-% 		line([x1, x2], [y1, y2], 'Color', 'y', 'LineWidth', 3);
-% 	end
-% end
-
+%minDistances
+title('Minimum Paths Between Cards')
 
 %% Random stuff 
 % [H,T,R] = hough(BW);
@@ -174,3 +208,45 @@ end
 % im3 = bwareafilt(im3,[])
 % 
 % B = bwtraceboundary(im3,)
+%% FUNCTIONS
+function [BW_out,properties,goodIm_index] = filterRegions(BW_in)
+%filterRegions  Filter BW image using auto-generated code from imageRegionAnalyzer app.
+%  [BW_OUT,PROPERTIES] = filterRegions(BW_IN) filters binary image BW_IN
+%  using auto-generated code from the imageRegionAnalyzer app. BW_OUT has
+%  had all of the options and filtering selections that were specified in
+%  imageRegionAnalyzer applied to it. The PROPERTIES structure contains the
+%  attributes of BW_out that were visible in the app.
+
+% Auto-generated by imageRegionAnalyzer app on 11-Sep-2019
+%---------------------------------------------------------
+
+BW_out = BW_in;
+
+% Get properties.
+properties = regionprops(BW_out, {'Area', 'MajorAxisLength', 'MinorAxisLength', 'Orientation'});
+aspect_list = [];
+goodIm_index =[];
+card_aspect = 87/56;
+card_aspect_up = card_aspect + card_aspect*0.05;
+card_aspect_low = card_aspect-card_aspect*0.05;
+for ii = 1:length(properties)
+    minor_length = properties(ii).MinorAxisLength;
+    major_length = properties(ii).MajorAxisLength;
+    aspect_ratio = major_length/minor_length;
+%     aspect_list = [aspect_list, aspect_ratio];
+    if aspect_ratio <= card_aspect_up && aspect_ratio >= card_aspect_low
+        goodIm_index = [goodIm_index,ii];
+    end
+end
+end
+%Pixel to mm converter
+function length_mm = pixel2mm(length_pixels,image)
+    props = regionprops(image,'MajorAxisLength');%Card in image major axis length (pixels)
+    majorCard_mm = 87; %UQ card major axis length (mm)
+    majorCard_px = props.MajorAxisLength;
+    mm_per_pixel = majorCard_mm/majorCard_px; %mm per pixel ratio
+    length_mm = length_pixels * mm_per_pixel;
+end
+%Majorlength = properties(1).Area
+% Uncomment the following line to return the properties in a table.
+% properties = struct2table(properties);
