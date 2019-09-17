@@ -1,6 +1,7 @@
 %% Initialise
 close all
 clear all
+clc
 
 % path = addpath(genpath("PS2 Images"));
 % 
@@ -63,8 +64,8 @@ end
 [im_out,properties,goodIm_index] = filterRegions(im3); %custom function made
 for k = 1:length(goodIm_index)
     area = properties(goodIm_index(k)).Area;
-    area_up = area+area*0.05;
-    area_low = area-area*0.05;
+    area_up = area+area*0.1;
+    area_low = area-area*0.1;
     filt_im = bwareafilt(im3,[area_low,area_up]);
 end
 %Plot boundary pixels over original image. 
@@ -81,7 +82,7 @@ title('Edge Overlay - Non-card objects filtered out')
 hold on;
 %% Task 3: Finding Pose
 [B,L,n,A] = bwboundaries(filt_im);
-numberOfCards = n;
+numberOfCards = n
 % Get centroid position from image properties
 % Centroids is a nx1 struct containg the xy coordinate of the centroid of each card 
 centroids = regionprops(filt_im,'Centroid');
@@ -94,8 +95,10 @@ for k = 1:n
     x_0 = 0;
     y_0 = 0;
     pos = centroids(k).Centroid; %2x1 coordinate vector
-    plot(pos(1,1),pos(1,2),'+','MarkerSize',15, 'DisplayName', ['Card',num2str(k)])
-    %text(pos(1,1),pos(1,2),'Colour','b',['Object',num2str(k)])
+    x = pos(1,1);
+    y = pos(1,2); 
+    plot(x,y,'+','MarkerSize',15, 'DisplayName', ['Card',num2str(k)])
+    text(x,y,['(',num2str(round(x,2)),', ', num2str(round(y,2)),')'],'color','b')
 end
 title('Object Index')
 legend;
@@ -105,6 +108,9 @@ hold off
 for ii = 1:n
     x = centroids(ii).Centroid(1,1);
     y = centroids(ii).Centroid(1,2);
+    %Build cell of centroid positions for plotting later
+    centroid_pos{ii,1} = x;
+    centroid_pos{ii,2} = y;
     theta = orients(ii).Orientation;
     num = num2str(ii);
     t = matlab.lang.makeValidName(num,'Prefix','t_');
@@ -117,6 +123,7 @@ for ii = 1:n
         0 0 1 0;
         0 0 0 1];
 end
+poses
 %% Homography
 % To find the smallest distance between cards we use the boundary
 % coordinates of each image (this is B from bwboundaries) and find the distance between
@@ -128,9 +135,13 @@ end
 figure; 
 imshow(orig)
 hold on
-for ii = 1:n
-    data = B{ii};
-    plot(data(:,2),data(:,1),'green','LineWidth',2)
+legend;
+% for ii = 1:n
+%     data = B{ii};
+%     plot(data(:,2),data(:,1),'green','LineWidth',2,'HandleVisibility','off')
+% end
+for j = 1:n
+    plot(centroid_pos{j,1},centroid_pos{j,2},'+','DisplayName',['Card ', num2str(j)])
 end
 num_boundaries = size(B, 1);
 combo =[];% Initialise combination list, this will be used to prevent repetitions of combinations
@@ -189,7 +200,7 @@ for b1 = 1:num_boundaries
         minDistances.(minDistance) = dist_mm;
         lines = append(num2str(b1),' to ',num2str(b2));
         % Draw a line between point 1 and 2
-		line([x1, x2], [y1, y2],'LineWidth', 3);
+		line([x1, x2], [y1, y2],'color',rand(1,3),'LineWidth', 3,'DisplayName',[num2str(dist_mm),' mm']);
     end
 end
 %minDistances
@@ -241,10 +252,11 @@ end
 end
 %Pixel to mm converter
 function length_mm = pixel2mm(length_pixels,image)
-    props = regionprops(image,'MajorAxisLength');%Card in image major axis length (pixels)
+    props = regionprops('table',image,'MajorAxisLength');%Card in image major axis length (pixels)
     majorCard_mm = 87; %UQ card major axis length (mm)
-    majorCard_px = props.MajorAxisLength;
-    mm_per_pixel = majorCard_mm/majorCard_px; %mm per pixel ratio
+    avg_major_px = mean(props.MajorAxisLength);
+    %majorCard_px = props.MajorAxisLength;
+    mm_per_pixel = majorCard_mm/avg_major_px; %mm per pixel ratio
     length_mm = length_pixels * mm_per_pixel;
 end
 %Majorlength = properties(1).Area
