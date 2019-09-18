@@ -16,7 +16,7 @@ clc
 % %response = input('Please enter the image number: ');
 % orig  = imread(imNames{1});
 
-orig = imread('C:\Users\Harry\Documents\MATLAB\YEAR 3\SEM 2\METR4202\PS2 Images\Basic\Simple13.png'); %import image
+%orig = imread('C:\Users\Harry\Documents\MATLAB\YEAR 3\SEM 2\METR4202\PS2 Images\Basic\Simple13.png'); %import image
 
 %% Extracting edges and filtering non-card objects
 
@@ -98,7 +98,7 @@ for k = 1:n
     x = pos(1,1);
     y = pos(1,2); 
     plot(x,y,'+','MarkerSize',15, 'DisplayName', ['Card',num2str(k)])
-    text(x,y,['(',num2str(round(x,2)),', ', num2str(round(y,2)),')'],'color','b')
+    text(x+ 30,y+30,['(',num2str(round(x,2)),', ', num2str(round(y,2)),')'],'color','b')
 end
 title('Object Index')
 legend;
@@ -135,7 +135,7 @@ poses
 figure; 
 imshow(orig)
 hold on
-legend;
+legend('Location','southeast');
 % for ii = 1:n
 %     data = B{ii};
 %     plot(data(:,2),data(:,1),'green','LineWidth',2,'HandleVisibility','off')
