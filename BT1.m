@@ -13,7 +13,10 @@ for n = 1:imCount
    imNames{n} = ['Simple', num2str(n), '.png'];
 end
 % Change image_num to the required image
-response = input('Please enter the image number (1-25): ');
+response = input('Please enter the image number (1-20): ');
+% if response == ''
+%     return
+% end
 orig  = imread(imNames{response});
 orig  = undistortImage(orig, cameraParams);
 
@@ -63,12 +66,17 @@ end
 %other images that werent within 5% of this area.
 fprintf('\n---------------------------------- Task 2 ----------------------------------\n')
 fprintf('See figure 3 for card edge detection that filters out non-card objects.\n')
-[im_out,properties,goodIm_index] = filterRegions(im3); %custom function made
-for k = 1:length(goodIm_index)
-    area = properties(goodIm_index(k)).Area;
-    area_up = area+area*0.1;
-    area_low = area-area*0.1;
-    filt_im = bwareafilt(im3,[area_low,area_up]);
+[im_out,properties,badIm_index] = filterRegions(im3); %custom function made
+%Label images
+labels = bwlabel(im3);
+filt_im = im3;
+for k = 1:length(badIm_index)
+    badIm_index(k)
+    filt_im(labels == badIm_index(k))=0;
+%     area = properties(goodIm_index(k)).Area;
+%     area_up = area+area*0.1;
+%     area_low = area-area*0.1;
+%     filt_im = bwareafilt(im3,[area_low,area_up]);
 end
 %Plot boundary pixels over original image. 
 figure; imshow(orig)
@@ -88,6 +96,7 @@ fprintf('\n---------------------------------- Task 3 ---------------------------
 [B,L,n,A] = bwboundaries(filt_im);
 numberOfCards = n;
 fprintf('There are %d cards in this image.\n\n',n)
+fprintf('See Figure 4 for the card index and centroid positions.\n')
 % Get centroid position from image properties
 % Centroids is a nx1 struct containg the xy coordinate of the centroid of each card 
 
@@ -98,18 +107,14 @@ orients = regionprops(filt_im,'Orientation');
 figure;
 imshow(orig)
 hold on
-for k = 1:n
-    x_0 = 0;
-    y_0 = 0;
-    pos = centroids(k).Centroid; %2x1 coordinate vector
-    x = pos(1,1);
-    y = pos(1,2); 
-    plot(x,y,'+','MarkerSize',15, 'DisplayName', ['Card',num2str(k)])
-    text(x+ 30,y+30,['(',num2str(round(x,2)),', ', num2str(round(y,2)),')'],'color','b')
-end
-title('Object Index')
+title('Centroids and Orientations of Cards')
 legend;
-hold off
+hold on
+%Plot axis
+quiver(30,30,100,0,'Color','k','HandleVisibility','off','LineWidth',2)
+text(30+90,30,'x','FontSize',15)
+quiver(30,30,0,100,'Color','k','HandleVisibility','off','LineWidth',2)
+text(30+5,30+90,'y','FontSize',15)
 % This for loop finds the poses of each card based on the orientation and
 % centroid position
 for ii = 1:n
@@ -118,12 +123,33 @@ for ii = 1:n
     %Build cell of centroid positions for plotting later
     centroid_pos{ii,1} = x;
     centroid_pos{ii,2} = y;
-    theta = orients(ii).Orientation;
+    
     num = num2str(ii);
+    
+    %Record and plot translations
     t = matlab.lang.makeValidName(num,'Prefix','Translation_');
     translations.(t) = [x;y];
+    plot(x,y,'+','MarkerSize',15,'LineWidth',2, 'DisplayName', ['Card ',num])
+    text(x+ 15,y+15,['(',num2str(round(x,2)),', ', num2str(round(y,2)),')'],'color','b')
+    
+    %Record and plot orientation
+    theta = orients(ii).Orientation;
+    %Due to symmetry of the cards it doesn't make sense for the angle to be
+    %above 90 degrees as this means the other end of the major axis is no
+    %less than 90 degrees. Therefore we always take the smallest angle.
+    if theta > 90
+        theta = theta - 180; 
+    end
     orient = matlab.lang.makeValidName(num,'Prefix','Orientation_');
-    orientations(ii).(orient) = theta;
+    orientations.(orient) = theta;
+    %Plot x axis for reference
+    quiver(x,y,350,0,'Color','k','HandleVisibility','off','LineWidth',2)
+    text(x+340,y,'x','FontSize',15)
+    %Plot major axis orientation
+    quiver(x,y,340*cos(-(theta*pi/180)),340*sin(-(theta*pi/180)),'Color','#34eb9b','HandleVisibility','off','LineWidth',2)
+    %line([x 100*cos(theta)],[y 100*sin(theta)],'Color','#34eb9b')
+    
+    %Generate pose
     N = matlab.lang.makeValidName(num,'Prefix','Transform_');
     T_forms.(N) = [cos(theta) sin(theta) 0 x;
         -sin(theta) cos(theta) 0 y;
@@ -148,26 +174,8 @@ if n>1
     fprintf('The transformations matrices for cards 1 - %d are:\n',n)
     struct2table(T_forms)
 end
-% for ii = 1:n
-%     x = centroids(ii).Centroid(1,1);
-%     y = centroids(ii).Centroid(1,2);
-%     %Build cell of centroid positions for plotting later
-%     centroid_pos{ii,1} = x;
-%     centroid_pos{ii,2} = y;
-%     theta = orients(ii).Orientation;
-%     num = num2str(ii);
-%     t = matlab.lang.makeValidName(num,'Prefix','t_');
-%     poses.(t) = [x;y;0];
-%     orient = matlab.lang.makeValidName(num,'Prefix','theta_');
-%     poses.(orient) = theta;
-%     N = matlab.lang.makeValidName(num,'Prefix','T_');
-%     poses.(N) = [cos(theta) sin(theta) 0 x;
-%         -sin(theta) cos(theta) 0 y;
-%         0 0 1 0;
-%         0 0 0 1];
-% end
-
-%% Homography
+%% Task 4: Homography
+fprintf('\n---------------------------------- Task 4 ----------------------------------\n')
 % To find the smallest distance between cards we use the boundary
 % coordinates of each image (this is B from bwboundaries) and find the distance between
 % each each using sqrt(x^2+y^2) we then return this distance.
@@ -179,12 +187,13 @@ figure;
 imshow(orig)
 hold on
 legend('Location','southeast');
-% for ii = 1:n
-%     data = B{ii};
-%     plot(data(:,2),data(:,1),'green','LineWidth',2,'HandleVisibility','off')
-% end
+%Plot axis
+quiver(30,30,100,0,'Color','k','HandleVisibility','off','LineWidth',2)
+text(30+90,30,'x','FontSize',15)
+quiver(30,30,0,100,'Color','k','HandleVisibility','off','LineWidth',2)
+text(30+5,30+90,'y','FontSize',15)
 for j = 1:n
-    plot(centroid_pos{j,1},centroid_pos{j,2},'+','DisplayName',['Card ', num2str(j)])
+    text(centroid_pos{j,1},centroid_pos{j,2},[num2str(j)],'Fontsize',30,'Color','#0072BD')
 end
 num_boundaries = size(B, 1);
 combo =[];% Initialise combination list, this will be used to prevent repetitions of combinations
@@ -237,9 +246,9 @@ for b1 = 1:num_boundaries
                 overallMinDist = min_dist;
             end
         end
-        images = append(num2str(b1),'to',num2str(b2));
-        minDistance = matlab.lang.makeValidName(images,'Prefix','minDist');
-        dist_mm = pixel2mm(overallMinDist,filt_im);
+        images = append('_',num2str(b1),'_to_',num2str(b2));
+        minDistance = matlab.lang.makeValidName(images,'Prefix','Min_Distance');
+        dist_mm = round(pixel2mm(overallMinDist,filt_im),2);
         minDistances.(minDistance) = dist_mm;
         lines = append(num2str(b1),' to ',num2str(b2));
         % Draw a line between point 1 and 2
@@ -248,7 +257,13 @@ for b1 = 1:num_boundaries
 end
 %minDistances
 title('Minimum Paths Between Cards')
-
+fprintf('See Figure 5 to see the minimum distancees (mm) between cards. They can also be seen below:')
+if n >1
+    struct2table(minDistances)
+end
+if n == 1
+    fprintf('\n Minimum distance between cards is %d mm\n', minDistances)
+    end
 %% Random stuff 
 % [H,T,R] = hough(BW);
 % P = houghpeaks(H,4);
@@ -263,7 +278,7 @@ title('Minimum Paths Between Cards')
 % 
 % B = bwtraceboundary(im3,)
 %% FUNCTIONS
-function [BW_out,properties,goodIm_index] = filterRegions(BW_in)
+function [BW_out,properties,badIm_index] = filterRegions(BW_in)
 %filterRegions  Filter BW image using auto-generated code from imageRegionAnalyzer app.
 %  [BW_OUT,PROPERTIES] = filterRegions(BW_IN) filters binary image BW_IN
 %  using auto-generated code from the imageRegionAnalyzer app. BW_OUT has
@@ -279,7 +294,7 @@ BW_out = BW_in;
 % Get properties.
 properties = regionprops(BW_out, {'Area', 'MajorAxisLength', 'MinorAxisLength', 'Orientation'});
 aspect_list = [];
-goodIm_index =[];
+badIm_index =[];
 card_aspect = 87/56;
 card_aspect_up = card_aspect + card_aspect*0.05;
 card_aspect_low = card_aspect-card_aspect*0.05;
@@ -288,8 +303,8 @@ for ii = 1:length(properties)
     major_length = properties(ii).MajorAxisLength;
     aspect_ratio = major_length/minor_length;
 %     aspect_list = [aspect_list, aspect_ratio];
-    if aspect_ratio <= card_aspect_up && aspect_ratio >= card_aspect_low
-        goodIm_index = [goodIm_index,ii];
+    if aspect_ratio >= card_aspect_up || aspect_ratio <= card_aspect_low
+        badIm_index = [badIm_index,ii];
     end
 end
 end
@@ -301,6 +316,14 @@ function length_mm = pixel2mm(length_pixels,image)
     %majorCard_px = props.MajorAxisLength;
     mm_per_pixel = majorCard_mm/avg_major_px; %mm per pixel ratio
     length_mm = length_pixels * mm_per_pixel;
+end
+function length_px = mm2pixel(length_mm,image)
+    props = regionprops('table',image,'MajorAxisLength');%Card in image major axis length (pixels)
+    majorCard_mm = 87; %UQ card major axis length (mm)
+    avg_major_px = mean(props.MajorAxisLength);
+    %majorCard_px = props.MajorAxisLength;
+    px_per_mm = avg_major_px/majorCard_mm; %mm per pixel ratio
+    length_px = length_mm * px_per_mm;
 end
 %Majorlength = properties(1).Area
 % Uncomment the following line to return the properties in a table.
