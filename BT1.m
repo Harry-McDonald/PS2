@@ -3,23 +3,23 @@ close all
 clear all
 clc
 
-% path = addpath(genpath("PS2 Images"));
-% 
-% imCount = 20;           % The number of images you want to load
-% imNames{imCount} = {};  % Empty array of imCount elements
-% prefix = "Simple";       % The prefix to use for loading images
-% 
-% for n = 1:imCount
-%    imNames{n} = ['Simple', num2str(n), '.png'];
-% end
-% %Change image_num to the required image
-% %response = input('Please enter the image number: ');
-% orig  = imread(imNames{1});
+path = addpath(genpath("PS2 Images"));
+load cameraParamsBasic cameraParams
+imCount = 20;           % The number of images you want to load
+imNames{imCount} = {};  % Empty array of imCount elements
+prefix = "Simple";       % The prefix to use for loading images
 
-%orig = imread('C:\Users\Harry\Documents\MATLAB\YEAR 3\SEM 2\METR4202\PS2 Images\Basic\Simple13.png'); %import image
+for n = 1:imCount
+   imNames{n} = ['Simple', num2str(n), '.png'];
+end
+% Change image_num to the required image
+response = input('Please enter the image number (1-25): ');
+orig  = imread(imNames{response});
+orig  = undistortImage(orig, cameraParams);
 
-%% Extracting edges and filtering non-card objects
-
+%% Task 1: Extracting edges and filtering non-card objects
+fprintf('\n---------------------------------- Task 1 ----------------------------------\n')
+fprintf('See figure 1 for object edge detection \nSee figure 2 for edge overlay onto original image \n')
 im1 = rgb2gray(orig); %make grayscale
 levels = multithresh(im1,5);
 thresh = double(min(levels))/256;
@@ -32,7 +32,7 @@ im4 = edge(im3,'canny',thresh(1));
 figure; 
 % subplot(1,2,1);
 imshow(im4)
-title('Edges - Including non-card objects');
+title('Task 1: Edges - Including non-card objects');
 hold on
 % This is what edge detection returns
 %We can also use bwboundaries to find the coordinates of the boundaries and
@@ -47,7 +47,7 @@ hold on;
 for ii = 1:n
     data = B{ii};
     plot(data(:,2),data(:,1),'green','LineWidth',2)
-    title('Edge Overlay - Including non-card objects')
+    title(' Task 1: Edge Overlay - Including non-card objects')
 end
 
 %% Task 2
@@ -61,6 +61,8 @@ end
 %each image found using imregionprops. If this matched the approximate
 %aspect ratio of a playing card (87/56) I grabbed its area and filtered out all 
 %other images that werent within 5% of this area.
+fprintf('\n---------------------------------- Task 2 ----------------------------------\n')
+fprintf('See figure 3 for card edge detection that filters out non-card objects.\n')
 [im_out,properties,goodIm_index] = filterRegions(im3); %custom function made
 for k = 1:length(goodIm_index)
     area = properties(goodIm_index(k)).Area;
@@ -78,13 +80,18 @@ for ii = 1:n
     data = B{ii};
     plot(data(:,2),data(:,1),'green','LineWidth',2)
 end
-title('Edge Overlay - Non-card objects filtered out')
+title('Task 2: Edge Overlay - Non-card objects filtered out')
 hold on;
 %% Task 3: Finding Pose
+fprintf('\n---------------------------------- Task 3 ----------------------------------\n')
+
 [B,L,n,A] = bwboundaries(filt_im);
-numberOfCards = n
+numberOfCards = n;
+fprintf('There are %d cards in this image.\n\n',n)
 % Get centroid position from image properties
 % Centroids is a nx1 struct containg the xy coordinate of the centroid of each card 
+
+Poses = regionprops('Table',filt_im,{'Centroid','Orientation'});
 centroids = regionprops(filt_im,'Centroid');
 orients = regionprops(filt_im,'Orientation');
 %Plot centroids and origin
@@ -103,8 +110,8 @@ end
 title('Object Index')
 legend;
 hold off
-%This for loop finds the poses of each card based on the orientation and
-%centroid position
+% This for loop finds the poses of each card based on the orientation and
+% centroid position
 for ii = 1:n
     x = centroids(ii).Centroid(1,1);
     y = centroids(ii).Centroid(1,2);
@@ -113,17 +120,53 @@ for ii = 1:n
     centroid_pos{ii,2} = y;
     theta = orients(ii).Orientation;
     num = num2str(ii);
-    t = matlab.lang.makeValidName(num,'Prefix','t_');
-    poses.(t) = [x;y;0];
-    orient = matlab.lang.makeValidName(num,'Prefix','theta_');
-    poses.(orient) = theta;
-    N = matlab.lang.makeValidName(num,'Prefix','T_');
-    poses.(N) = [cos(theta) sin(theta) 0 x;
+    t = matlab.lang.makeValidName(num,'Prefix','Translation_');
+    translations.(t) = [x;y];
+    orient = matlab.lang.makeValidName(num,'Prefix','Orientation_');
+    orientations(ii).(orient) = theta;
+    N = matlab.lang.makeValidName(num,'Prefix','Transform_');
+    T_forms.(N) = [cos(theta) sin(theta) 0 x;
         -sin(theta) cos(theta) 0 y;
         0 0 1 0;
         0 0 0 1];
 end
-poses
+if n == 1
+    fprintf('There is 1 card in this image.\n\n',n)
+    fprintf("The translation of the card's centroid is: (in pixels)\n")
+    struct2table(translations)
+    fprintf('The orientation of the card, measured as the angle from the major axis to the positve x axis, is: (in degrees) \n',n)
+    struct2table(orientations)
+    fprintf('The transformation matrix for this card is:\n')
+    struct2table(T_forms)
+end
+if n>1
+    fprintf('There are %d cards in this image.\n\n',n)
+    fprintf('The translation of the centroids for cards 1 - %d are: (in pixels)\n',n)
+    struct2table(translations)
+    fprintf('The orientations of cards 1 - %d are: (in degrees)\n',n)
+    struct2table(orientations)
+    fprintf('The transformations matrices for cards 1 - %d are:\n',n)
+    struct2table(T_forms)
+end
+% for ii = 1:n
+%     x = centroids(ii).Centroid(1,1);
+%     y = centroids(ii).Centroid(1,2);
+%     %Build cell of centroid positions for plotting later
+%     centroid_pos{ii,1} = x;
+%     centroid_pos{ii,2} = y;
+%     theta = orients(ii).Orientation;
+%     num = num2str(ii);
+%     t = matlab.lang.makeValidName(num,'Prefix','t_');
+%     poses.(t) = [x;y;0];
+%     orient = matlab.lang.makeValidName(num,'Prefix','theta_');
+%     poses.(orient) = theta;
+%     N = matlab.lang.makeValidName(num,'Prefix','T_');
+%     poses.(N) = [cos(theta) sin(theta) 0 x;
+%         -sin(theta) cos(theta) 0 y;
+%         0 0 1 0;
+%         0 0 0 1];
+% end
+
 %% Homography
 % To find the smallest distance between cards we use the boundary
 % coordinates of each image (this is B from bwboundaries) and find the distance between
